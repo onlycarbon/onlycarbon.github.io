@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>盐粒排成的声音 · 感觉博物馆</title>
+<meta name="description" content="频率对了，一朵花从盐粒里长出来；频率错了，板只是嗡嗡作响。这是克拉德尼图形，声音的骨架。">
+<style>
+  :root{
+    --paper:#f5efe2; --card:#fbf7ec; --ink:#2a2521; --ink-soft:#8a8071;
+    --seal:#b5402c; --line:#d8cdb6;
+    --serif:"Noto Serif SC","Songti SC","STSong","SimSun",serif;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{
+    background:var(--paper);
+    background-image:radial-gradient(rgba(140,120,90,.06) 1px, transparent 1px);
+    background-size:26px 26px;
+    color:var(--ink);font-family:var(--serif);min-height:100vh;padding:30px 16px 40px;
+  }
+  .wrap{max-width:860px;margin:0 auto;}
+  .topbar{display:flex;justify-content:space-between;align-items:baseline;font-size:13px;color:var(--ink-soft);letter-spacing:.15em;margin-bottom:26px;}
+  .topbar a{color:var(--ink-soft);text-decoration:none;border-bottom:1px solid var(--line);padding-bottom:2px;}
+  .topbar a:hover{color:var(--seal);border-color:var(--seal);}
+  header{text-align:center;margin-bottom:26px;animation:rise .8s ease both;}
+  h1{font-size:clamp(30px,6vw,42px);letter-spacing:.22em;margin-bottom:8px;}
+  .en{font-size:11px;letter-spacing:.5em;color:var(--ink-soft);text-transform:uppercase;margin-bottom:12px;}
+  .sub{font-size:14.5px;color:#57503f;letter-spacing:.08em;}
+
+  .stagewrap{
+    background:var(--card);border:1px solid var(--ink);
+    box-shadow:0 0 0 4px var(--card),0 0 0 5px var(--line);
+    padding:20px 20px 16px;animation:rise .8s .1s ease both;
+  }
+  .stage{
+    position:relative;width:560px;max-width:100%;aspect-ratio:1/1;margin:0 auto;
+    border-radius:6px;overflow:hidden;touch-action:none;cursor:crosshair;
+    background:#1c1d22;
+    box-shadow:inset 0 0 0 1px rgba(0,0,0,.5), 0 10px 26px rgba(60,50,30,.16);
+  }
+  .stage canvas{display:block;width:100%;height:100%;}
+  .hud{
+    position:absolute;top:9px;left:12px;right:12px;
+    display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;
+    font-size:11.5px;letter-spacing:.06em;color:rgba(232,224,205,.82);
+    pointer-events:none;text-shadow:0 1px 3px rgba(0,0,0,.7);
+  }
+  .hud b{color:#f0c98a;font-weight:normal;}
+  .hud .warn{color:#d99a7a;}
+  .caption{
+    position:absolute;left:0;right:0;bottom:0;
+    padding:9px 14px;font-size:12.5px;line-height:1.6;text-align:center;
+    color:rgba(245,236,220,.96);background:rgba(20,18,14,.68);
+    opacity:0;transform:translateY(6px);transition:opacity .5s ease, transform .5s ease;
+    pointer-events:none;
+  }
+  .caption.show{opacity:1;transform:none;}
+
+  .freqrow{display:flex;align-items:center;gap:12px;justify-content:center;margin-top:16px;font-size:13.5px;color:#453e30;}
+  .sliderbox{position:relative;flex:1;max-width:420px;}
+  .sliderbox input{width:100%;display:block;accent-color:var(--seal);position:relative;z-index:1;}
+  .freqrow b{color:var(--seal);font-size:16px;min-width:78px;text-align:right;}
+  .ticks{position:absolute;left:7px;right:7px;top:19px;height:7px;pointer-events:none;}
+  .ticks i{position:absolute;top:0;width:1px;height:7px;background:var(--ink-soft);opacity:.55;font-style:normal;}
+
+  .ctrls{
+    background:var(--card);border:1px solid var(--ink);
+    box-shadow:0 0 0 4px var(--card),0 0 0 5px var(--line);
+    padding:16px 18px;margin-top:16px;
+  }
+  .hint{text-align:center;font-size:12px;color:var(--ink-soft);letter-spacing:.05em;margin-bottom:12px;}
+  .btnrow{display:flex;flex-wrap:wrap;gap:9px;justify-content:center;margin-bottom:10px;}
+  .btnrow:last-of-type{margin-bottom:0;}
+  .btn{
+    font-family:var(--serif);font-size:13.5px;letter-spacing:.06em;
+    background:var(--card);color:var(--ink);border:1.5px solid var(--ink);
+    border-radius:9px;padding:9px 15px;cursor:pointer;
+  }
+  .btn:hover{border-color:var(--seal);color:var(--seal);}
+  .btn.on{background:var(--seal);color:#fdf6ee;border-color:var(--seal);}
+  .btn.util{opacity:.86;}
+
+  .plaque{
+    background:var(--card);border:1px solid var(--ink);
+    box-shadow:0 0 0 4px var(--card),0 0 0 5px var(--line);
+    padding:22px 24px 20px;margin-top:16px;
+  }
+  .plaque .pt{font-size:12px;letter-spacing:.25em;color:var(--seal);margin-bottom:10px;}
+  .plaque .pb{font-size:15px;line-height:2.05;color:#453e30;margin-bottom:14px;}
+  .plaque .pb:last-child{margin-bottom:0;}
+  .plaque .pb b{color:var(--ink);}
+  .quote{
+    text-align:center;font-size:16px;line-height:2.1;color:var(--ink);
+    padding-top:14px;margin-top:4px;border-top:1px dashed var(--line);
+  }
+  .quote b{color:var(--seal);}
+
+  footer{text-align:center;margin-top:44px;color:var(--ink-soft);font-size:11.5px;letter-spacing:.18em;line-height:2.3;}
+  footer a{color:var(--ink-soft);}
+  footer a:hover{color:var(--seal);}
+  @keyframes rise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+  @media (prefers-reduced-motion: reduce){*{animation:none!important;}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="topbar">
+    <a href="../">← 出厂陈列室</a>
+    <span>展厅 №027</span>
+  </div>
+
+  <header>
+    <h1>盐粒排成的声音</h1>
+    <div class="en">CHLADNI FIGURES</div>
+    <p class="sub">声音一直有形状，只是你需要一把盐</p>
+  </header>
+
+  <div class="stagewrap">
+    <div class="stage" id="stage">
+      <canvas id="cv" width="560" height="560"></canvas>
+      <div class="hud">
+        <span>频率 <b id="hudFreq">180 Hz</b></span>
+        <span id="hudMode">模式 (1,2)</span>
+        <span>盐粒 <b id="hudN">9000</b></span>
+      </div>
+      <div class="caption" id="caption"></div>
+    </div>
+
+    <div class="freqrow">
+      <span>180</span>
+      <div class="sliderbox">
+        <input type="range" id="freqSlider" min="180" max="1600" step="1" value="180">
+        <div class="ticks" id="ticks"></div>
+      </div>
+      <span>1600</span>
+      <b id="freqVal">180 Hz</b>
+    </div>
+  </div>
+
+  <div class="ctrls">
+    <p class="hint">点共振点直接跳过去，或自己拖滑杆找。板上按住拖动能推开盐粒，松手看它们被赶回节线</p>
+    <div class="btnrow" id="presetRow"></div>
+    <div class="btnrow">
+      <button class="btn util" id="btnResalt">🧂 重新撒盐</button>
+      <button class="btn util" id="btnSound">🔊 声音：关</button>
+    </div>
+  </div>
+
+  <div class="plaque">
+    <div class="pt">说明牌 · 拿破仑悬赏的答案</div>
+    <div class="pb">1787 年，克拉德尼用小提琴的琴弓在撒了沙的铜板边缘一拉，沙粒自己排成了花。他带着这块板巡演全欧洲，拿破仑看完当场设了悬赏，求一个数学解释。</div>
+    <div class="pt">说明牌 · 原理</div>
+    <div class="pb">板在共振时分成振动的区域和一动不动的线（节线）。盐粒被振动的地方抛来抛去，落到不动的线上就再也不走了。你看到的花纹，是驻波的骨架。</div>
+    <div class="pt">说明牌 · 共振是挑剔的</div>
+    <div class="pb">频率对了，一朵花；频率错了，什么都没有，板只是响。每一朵花对应一个频率，这块板的「指纹」。</div>
+    <div class="pt">说明牌 · 现实同款</div>
+    <div class="pb">小提琴和吉他的面板设计要算节线，超声波清洗机在振动死角洗不干净，音箱上的灰尘会自己排队。</div>
+    <div class="quote">声音一直有形状。只是你需要一把盐，和一个正好的频率。</div>
+  </div>
+
+  <footer>
+    感觉博物馆 · 展厅 №027 · Max 造<br>
+    <a href="../">回陈列室，看看还有什么 →</a>
+  </footer>
+</div>
+
+<script>
+(function(){
+'use strict';
+
+/* ================= 物理设计 =================
+   方形自由板驻波近似：A(x,y) = cos(nπx)cos(mπy) − cos(mπx)cos(nπy)，x,y∈[0,1]。
+   盐粒每步随机游走，步长 ∝ |A(当前位置)| × 全局激励纯度：振动强的地方被抖走，
+   节线(A≈0)上停住，图案自己长出来。
+   共振是挑剔的：8个(m,n)模式按 m²+n² 排序，均匀铺进 180~1600Hz（相邻模式的
+   √(m²+n²) 有的只差0.1，线性映射会把频率挤在一起，改用等间距排位保证每个
+   共振点都留够可分辨的滑杆区间）。当前频率离最近共振点的距离决定"纯度"：
+   纯度→1，图案清晰收敛；纯度→0，盐粒只是无方向乱抖，不成形。
+================================================== */
+
+var cv = document.getElementById('cv');
+var ctx = cv.getContext('2d');
+var W = 560, H = 560;
+
+/* ---------- 模式表：8个(m,n)按 m²+n² 排序，等间距铺进 180~1600Hz ---------- */
+var MODES = [
+  {m:1, n:2, name:'🌸 第一朵'},
+  {m:1, n:3, name:'🕸 网'},
+  {m:2, n:3, name:'❄️ 雪花'},
+  {m:3, n:4, name:'🌀 风车'},
+  {m:1, n:5, name:'🪢 脉络'},
+  {m:2, n:5, name:'✴️ 星芒'},
+  {m:3, n:5, name:'⚙️ 齿轮'},
+  {m:4, n:5, name:'🔮 花窗'}
+];
+MODES.sort(function(a,b){ return (a.m*a.m+a.n*a.n) - (b.m*b.m+b.n*b.n); });
+var FMIN = 180, FMAX = 1600;
+MODES.forEach(function(md, i){
+  md.freq = Math.round(FMIN + (i/(MODES.length-1)) * (FMAX-FMIN));
+});
+
+/* ---------- 滑杆刻度：每个共振点在滑杆上标一根小线 ---------- */
+(function drawTicks(){
+  var box = document.getElementById('ticks');
+  MODES.forEach(function(md){
+    var t = (md.freq - FMIN) / (FMAX - FMIN);
+    var tick = document.createElement('i');
+    tick.style.left = (t*100) + '%';
+    box.appendChild(tick);
+  });
+})();
+
+/* ---------- 振幅场 ---------- */
+function amplitude(m, n, x, y){
+  return Math.cos(n*Math.PI*x)*Math.cos(m*Math.PI*y) - Math.cos(m*Math.PI*x)*Math.cos(n*Math.PI*y);
+}
+
+/* ---------- 纯度：离最近共振点越近，激励越"纯" ---------- */
+var PURITY_BAND = 55; // Hz，纯度降到0所需的偏移量（模式间距≈203Hz，留足过渡带）
+function nearestMode(freq){
+  var best = null, bestD = Infinity;
+  for (var i=0;i<MODES.length;i++){
+    var d = Math.abs(freq - MODES[i].freq);
+    if (d < bestD){ bestD = d; best = MODES[i]; }
+  }
+  return {mode: best, dist: bestD};
+}
+function purityOf(dist){
+  var p = Math.max(0, 1 - dist/PURITY_BAND);
+  return p*p; // 平方让"锁定"的感觉更陡
+}
+
+/* ---------- 当前状态 ---------- */
+var freq = 180;
+var current = nearestMode(freq);
+var purity = purityOf(current.dist);
+
+function setFreq(f){
+  freq = Math.max(FMIN, Math.min(FMAX, f));
+  current = nearestMode(freq);
+  purity = purityOf(current.dist);
+  document.getElementById('freqSlider').value = Math.round(freq);
+  document.getElementById('freqVal').textContent = Math.round(freq) + ' Hz';
+  document.getElementById('hudFreq').textContent = Math.round(freq) + ' Hz';
+  var modeEl = document.getElementById('hudMode');
+  if (purity > 0.08){
+    modeEl.innerHTML = '模式 <b>(' + current.mode.m + ',' + current.mode.n + ')</b>';
+  } else {
+    modeEl.innerHTML = '<span class="warn">非共振</span>';
+  }
+  updateTone();
+}
+
+/* ---------- 盐粒：TypedArray 复用，每帧只更新一半 ---------- */
+var N = 9000;
+var sx = new Float32Array(N), sy = new Float32Array(N);
+var half = 0; // 交替更新的分片游标
+
+function scatterSalt(){
+  for (var i=0;i<N;i++){
+    sx[i] = Math.random()*W;
+    sy[i] = Math.random()*H;
+  }
+}
+scatterSalt();
+
+/* ---------- 手指扰动：按住拖动把附近盐粒推开 ---------- */
+var poke = null; // {x,y} 画布坐标，null=无扰动
+var POKE_R = 40, POKE_R2 = POKE_R*POKE_R;
+
+/* ---------- 每步更新 ---------- */
+var WALK_SCALE = 11; // 像素步长基准（对应归一化 EXCITE≈0.0196，略高于验证脚本的0.018，抵消9000粒/560px场景下更短的每帧时间片）
+function stepSalt(rng, from, to){
+  for (var i=from;i<to;i++){
+    var nx = sx[i]/W, ny = sy[i]/H;
+    var a = Math.abs(amplitude(current.mode.m, current.mode.n, nx, ny));
+    /* 非共振时板子到处都在微振：加一项与 |A| 无关的底噪，让锁在节线上的旧图案慢慢散掉；共振时(purity=1)该项归零，花纹保持锐利 */
+    var stepSize = WALK_SCALE * (a * (0.12 + 0.88*purity) + (1 - purity) * 0.06);
+    var ang = rng()*Math.PI*2;
+    var dx = Math.cos(ang)*stepSize, dy = Math.sin(ang)*stepSize;
+
+    if (poke){
+      var pdx = sx[i]-poke.x, pdy = sy[i]-poke.y;
+      var pd2 = pdx*pdx+pdy*pdy;
+      if (pd2 < POKE_R2 && pd2 > 1){
+        var pinv = 1/Math.sqrt(pd2);
+        var push = (1 - pd2/POKE_R2) * 26;
+        dx += pdx*pinv*push;
+        dy += pdy*pinv*push;
+      }
+    }
+
+    var px = sx[i]+dx, py = sy[i]+dy;
+    if (px<0) px=-px; else if (px>W) px=2*W-px;
+    if (py<0) py=-py; else if (py>H) py=2*H-py;
+    sx[i]=px; sy[i]=py;
+  }
+}
+
+/* ---------- 简单可复现随机数 ---------- */
+function mulberry32(a){
+  return function(){
+    a |= 0; a = a + 0x6D2B79F5 | 0;
+    var t = Math.imul(a ^ a >>> 15, 1 | a);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+var rng = mulberry32(Date.now() & 0xffffffff);
+
+/* ---------- 渲染：深色板 + 四角螺丝 + 暖白盐粒 ---------- */
+var screwR = 7, pad = 16;
+function drawPlate(){
+  var g = ctx.createRadialGradient(W*0.5,H*0.42,10,W*0.5,H*0.5,W*0.72);
+  g.addColorStop(0,'#2b2c33');
+  g.addColorStop(1,'#17181c');
+  ctx.fillStyle = g;
+  ctx.fillRect(0,0,W,H);
+
+  ctx.strokeStyle = 'rgba(255,255,255,.05)';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(0.5,0.5,W-1,H-1);
+
+  var corners = [[pad,pad],[W-pad,pad],[pad,H-pad],[W-pad,H-pad]];
+  for (var c=0;c<4;c++){
+    var cx=corners[c][0], cy=corners[c][1];
+    var sg = ctx.createRadialGradient(cx-2,cy-2,1,cx,cy,screwR);
+    sg.addColorStop(0,'#8a8d95');
+    sg.addColorStop(1,'#3c3d43');
+    ctx.fillStyle = sg;
+    ctx.beginPath();
+    ctx.arc(cx,cy,screwR,0,Math.PI*2);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(0,0,0,.5)';
+    ctx.lineWidth = 1.4;
+    ctx.beginPath();
+    ctx.moveTo(cx-screwR*0.55,cy);
+    ctx.lineTo(cx+screwR*0.55,cy);
+    ctx.stroke();
+  }
+}
+
+function drawSalt(){
+  ctx.fillStyle = 'rgba(245,238,222,.92)';
+  for (var i=0;i<N;i++){
+    var s = 1 + (i % 3) * 0.25; // 1~1.5px 交替，免逐粒随机数开销
+    ctx.fillRect(sx[i]-s*0.5, sy[i]-s*0.5, s, s);
+  }
+}
+
+function draw(){
+  drawPlate();
+  drawSalt();
+}
+
+/* ---------- 音效：正弦音随频率，共振点附近加一点谐波，默认关闭 ---------- */
+var actx = null, osc = null, gain = null, osc2 = null, gain2 = null;
+var soundOn = false;
+function ensureAudio(){
+  if (actx) return;
+  try { actx = new (window.AudioContext || window.webkitAudioContext)(); }
+  catch(e){ return; }
+  osc = actx.createOscillator();
+  gain = actx.createGain();
+  osc.type = 'sine';
+  osc.frequency.value = freq;
+  gain.gain.value = 0;
+  osc.connect(gain); gain.connect(actx.destination);
+  osc.start();
+
+  osc2 = actx.createOscillator();
+  gain2 = actx.createGain();
+  osc2.type = 'sine';
+  osc2.frequency.value = freq*2;
+  gain2.gain.value = 0;
+  osc2.connect(gain2); gain2.connect(actx.destination);
+  osc2.start();
+}
+function updateTone(){
+  if (!actx || !soundOn) return;
+  var t = actx.currentTime;
+  osc.frequency.setTargetAtTime(freq, t, 0.05);
+  osc2.frequency.setTargetAtTime(freq*2, t, 0.05);
+  var base = 0.05;
+  gain.gain.setTargetAtTime(base, t, 0.08);
+  gain2.gain.setTargetAtTime(base*0.5*purity, t, 0.08); // 共振点附近谐波"亮"起来
+}
+function setSound(on){
+  soundOn = on;
+  var btn = document.getElementById('btnSound');
+  if (on){
+    ensureAudio();
+    if (actx && actx.state === 'suspended') actx.resume();
+    btn.textContent = '🔊 声音：开';
+    btn.classList.add('on');
+    updateTone();
+  } else {
+    btn.textContent = '🔊 声音：关';
+    btn.classList.remove('on');
+    if (actx){
+      var t = actx.currentTime;
+      gain.gain.setTargetAtTime(0, t, 0.05);
+      gain2.gain.setTargetAtTime(0, t, 0.05);
+    }
+  }
+}
+
+/* ---------- 字幕 ---------- */
+var capEl = document.getElementById('caption');
+var capTimer = null;
+function showCaption(text, ms){
+  if (capTimer){ clearTimeout(capTimer); capTimer = null; }
+  if (!text){ capEl.classList.remove('show'); return; }
+  capEl.textContent = text;
+  capEl.classList.add('show');
+  if (ms > 0) capTimer = setTimeout(function(){ capEl.classList.remove('show'); }, ms);
+}
+
+/* ---------- 预设按钮 ---------- */
+var presetRow = document.getElementById('presetRow');
+MODES.forEach(function(md){
+  var b = document.createElement('button');
+  b.className = 'btn';
+  b.textContent = md.name;
+  b.addEventListener('click', function(){
+    setFreq(md.freq);
+    document.querySelectorAll('#presetRow .btn').forEach(function(x){ x.classList.remove('on'); });
+    b.classList.add('on');
+    showCaption(md.name + '：' + md.freq + ' Hz 是这块板的一个指纹。', 2400);
+  });
+  presetRow.appendChild(b);
+});
+function syncPresetHighlight(){
+  var atMode = purity > 0.94;
+  document.querySelectorAll('#presetRow .btn').forEach(function(b,i){
+    b.classList.toggle('on', atMode && MODES[i].freq === current.mode.freq);
+  });
+}
+
+/* ---------- 滑杆 ---------- */
+document.getElementById('freqSlider').addEventListener('input', function(){
+  setFreq(+this.value);
+  syncPresetHighlight();
+});
+
+/* ---------- 重新撒盐 / 声音开关 ---------- */
+document.getElementById('btnResalt').addEventListener('click', function(){
+  scatterSalt();
+  showCaption('盐重新撒匀了，等它再长出图案。', 1800);
+});
+document.getElementById('btnSound').addEventListener('click', function(){
+  setSound(!soundOn);
+});
+
+/* ---------- 板上拖动扰动 ---------- */
+function toCanvas(e){
+  var r = cv.getBoundingClientRect();
+  var t = e.touches ? e.touches[0] : e;
+  var cx = (t.clientX - r.left) * (W / r.width);
+  var cy = (t.clientY - r.top) * (H / r.height);
+  return {x: cx, y: cy};
+}
+var stageEl = document.getElementById('stage');
+stageEl.addEventListener('mousedown', function(e){ poke = toCanvas(e); });
+window.addEventListener('mousemove', function(e){ if (poke) poke = toCanvas(e); });
+window.addEventListener('mouseup', function(){ poke = null; });
+stageEl.addEventListener('touchstart', function(e){ e.preventDefault(); poke = toCanvas(e); }, {passive:false});
+stageEl.addEventListener('touchmove', function(e){ e.preventDefault(); poke = toCanvas(e); }, {passive:false});
+stageEl.addEventListener('touchend', function(){ poke = null; });
+
+/* ---------- 主循环：rAF 真实时间补帧，固定子步；9000粒每帧只更新一半 ---------- */
+var acc = 0, lastT = null;
+var STEP_DT = 1/60;
+var introShown = false;
+function frame(now){
+  if (lastT === null) lastT = now;
+  var dt = (now - lastT) / 1000;
+  lastT = now;
+  if (dt > 0.1) dt = 0.1;
+  acc += dt;
+  var did = 0;
+  while (acc >= STEP_DT && did < 4){
+    var mid = half === 0 ? N>>1 : N;
+    var from = half === 0 ? 0 : N>>1;
+    stepSalt(rng, from, mid);
+    half = 1 - half;
+    acc -= STEP_DT;
+    did++;
+  }
+  draw();
+
+  if (!introShown){
+    introShown = true;
+    showCaption('拖动下面的滑杆找共振点，或直接点一个预设。', 3400);
+  }
+
+  requestAnimationFrame(frame);
+}
+
+setFreq(180);
+requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
