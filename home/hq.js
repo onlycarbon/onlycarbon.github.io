@@ -1025,7 +1025,8 @@
     ctl.maxPolarAngle = 1.32; ctl.minPolarAngle = 0.12;
     ctl.autoRotate = true; ctl.autoRotateSpeed = 0.5;
     ctl.addEventListener("start", function(){ D3.interacted = true; ctl.autoRotate = false; });
-    ctl.addEventListener("change", function(){ if (D3.raf === null) d3Render(); });
+    /* inStep 防双渲染:step 里 update() 会同步派发 change,不能再叠一次 render */
+    ctl.addEventListener("change", function(){ if (D3.raf === null && !D3.inStep) d3Render(); });
     D3.controls = ctl;
 
     /* 灯光(强度随昼夜调) */
@@ -1366,28 +1367,37 @@
     if (D3.raf === null) d3Render();
   }
 
+  /* 夜间工位灯=真值直播:每次同步按 working 集合增删,不吃快照(灯亮=此刻真有人干活) */
+  function d3WorkLights(){
+    if (!D3.ready) return;
+    var sc = D3.scene, by = D3.lights.workBy || (D3.lights.workBy = {});
+    var want = {};
+    if (D3.toneNow === "night"){
+      T.actors().forEach(function(a){ if (a.cond === "working" && ZONES[a.agent]) want[a.agent] = true; });
+    }
+    Object.keys(by).forEach(function(agent){
+      if (!want[agent]){ sc.remove(by[agent]); delete by[agent]; }
+    });
+    Object.keys(want).forEach(function(agent){
+      if (by[agent]) return;
+      var z = ZONES[agent];
+      var pl = new THREE.PointLight(0xffc37a, 0.85, 150, 1.6);
+      pl.position.set(W2X(z.desk[0]), 46, W2Z(z.desk[1]) + 10);
+      sc.add(pl); by[agent] = pl;
+    });
+  }
   function d3Tone(){
     if (!D3.ready) return;
     var tn = tone();
     if (D3.toneNow === tn) return;
     D3.toneNow = tn;
     var sc = D3.scene;
-    D3.lights.work.forEach(function(l){ sc.remove(l); });
-    D3.lights.work = [];
     if (tn === "night"){
       sc.background = new THREE.Color(0x1c2438);
       sc.fog = new THREE.Fog(0x1c2438, 1100, 2100);
       D3.lights.hemi.color.setHex(0x51628c); D3.lights.hemi.groundColor.setHex(0x1a2233);
       D3.lights.hemi.intensity = 0.75;
       D3.lights.dir.color.setHex(0x9fb2dd); D3.lights.dir.intensity = 0.22;
-      var actors = T.actors();
-      actors.forEach(function(a){
-        if (a.cond !== "working") return;
-        var z = ZONES[a.agent]; if (!z) return;
-        var pl = new THREE.PointLight(0xffc37a, 0.85, 150, 1.6);
-        pl.position.set(W2X(z.desk[0]), 46, W2Z(z.desk[1]) + 10);
-        sc.add(pl); D3.lights.work.push(pl);
-      });
     } else if (tn === "dusk"){
       sc.background = new THREE.Color(0xecdcd0);
       sc.fog = new THREE.Fog(0xecdcd0, 1100, 2100);
@@ -1401,6 +1411,7 @@
       D3.lights.hemi.intensity = 1.0;
       D3.lights.dir.color.setHex(0xffffff); D3.lights.dir.intensity = 0.5;
     }
+    d3WorkLights();
     if (D3.raf === null) d3Render();
   }
 
@@ -1424,7 +1435,14 @@
     if (D3.raf){ cancelAnimationFrame(D3.raf); D3.raf = null; }
     var reduced = false;
     try { reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches || /[?&]reduce\b/.test(location.search); } catch(e){}
-    if (reduced || document.hidden){ d3Render(); D3.raf = null; return; }   /* 静态真值帧,交互靠 change 事件重画 */
+    if (reduced || document.hidden){
+      /* 静态真值帧,交互靠 change 事件重画;按需渲染下阻尼/自转没有收敛循环,必须关掉 */
+      D3.controls.enableDamping = false;
+      D3.controls.autoRotate = false;
+      d3Render(); D3.raf = null; return;
+    }
+    D3.controls.enableDamping = true;
+    D3.controls.autoRotate = !D3.interacted;
     var step = function(){
       D3.raf = null;
       if (!full || !D3.wanted || document.hidden) { d3Render(); return; }
@@ -1434,7 +1452,9 @@
         if (r.cond === "working") r.pivot.position.y = Math.abs(Math.sin(now / 300 + r.phase)) * 1.6;
         else if (r.cond === "resting") r.pivot.rotation.y = Math.sin(now / 900 + r.phase) * 0.22;
       });
+      D3.inStep = true;
       D3.controls.update();
+      D3.inStep = false;
       d3Render();
       D3.raf = requestAnimationFrame(step);
     };
