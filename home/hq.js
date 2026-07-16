@@ -1016,10 +1016,10 @@
     var sc = new THREE.Scene();
     D3.scene = sc;
     var cam = new THREE.PerspectiveCamera(38, 16 / 9, 1, 4000);
-    cam.position.set(320, 360, 460);
+    cam.position.set(430, 470, 560);
     D3.camera = cam;
     var ctl = new THREE.OrbitControls(cam, D3.canvas);
-    ctl.target.set(0, 14, -8);
+    ctl.target.set(-30, 10, -14);
     ctl.enableDamping = true; ctl.dampingFactor = 0.08;
     ctl.minDistance = 240; ctl.maxDistance = 1100;
     ctl.maxPolarAngle = 1.32; ctl.minPolarAngle = 0.12;
@@ -1227,7 +1227,14 @@
         D3.camera.position.set(dist * Math.cos(el) * Math.sin(az), dist * Math.sin(el), dist * Math.cos(el) * Math.cos(az));
         D3.controls.update(); d3Render();
       },
-      render: function(){ d3Render(); }
+      render: function(){ d3Render(); },
+      pickAt: function(x, y){ return d3PickAt(x, y); },
+      project: function(agent){
+        var r0 = D3.robots[agent]; if (!r0) return null;
+        var v = r0.g.position.clone(); v.y += 20; v.project(D3.camera);
+        var rect = D3.canvas.getBoundingClientRect();
+        return [rect.left + (v.x + 1) / 2 * rect.width, rect.top + (1 - (v.y + 1) / 2) * rect.height];
+      }
     };
   }
 
@@ -1294,8 +1301,8 @@
       var r = D3.robots[agent], a = condBy[agent], z = ZONES[agent];
       var cond = a ? a.cond : "tidy";
       var px, pz;
-      if (cond === "working"){ px = W2X(z.desk[0]); pz = W2Z(z.desk[1]) + 24; }
-      else if (cond === "mess"){ px = W2X(z.desk[0]) + 20; pz = W2Z(z.desk[1]) + 26; }
+      if (cond === "working"){ px = W2X(z.desk[0]); pz = W2Z(z.desk[1]) + 31; }
+      else if (cond === "mess"){ px = W2X(z.desk[0]) + 26; pz = W2Z(z.desk[1]) + 36; }
       else if (cond === "resting" && a){ px = W2X(a.x); pz = W2Z(a.y); }
       else { px = W2X(z.bed[0]); pz = W2Z(z.bed[1]); }
       r.g.position.set(px, 0, pz);
@@ -1403,6 +1410,13 @@
     D3.renderer.setSize(w, h);
     D3.camera.aspect = w / h;
     D3.camera.updateProjectionMatrix();
+    if (!D3.interacted){
+      /* 用户还没接管镜头:竖屏自动拉远一档,整层楼装得下 */
+      var dist = (w / h < 0.8) ? 1020 : 850;
+      var dir = D3.camera.position.clone().sub(D3.controls.target).normalize();
+      D3.camera.position.copy(D3.controls.target.clone().add(dir.multiplyScalar(dist)));
+      D3.controls.update();
+    }
     if (D3.raf === null) d3Render();
   }
   function d3Render(){ if (D3.ready) D3.renderer.render(D3.scene, D3.camera); }
@@ -1427,6 +1441,7 @@
     D3.raf = requestAnimationFrame(step);
   }
   document.addEventListener("visibilitychange", function(){
+    if (D3.ready && D3.wanted && full && !document.hidden){ d3Resize(); }   /* 后台建的 1×1 画布在此自愈 */
     if (D3.ready && D3.wanted && full) d3Loop();
   });
 
